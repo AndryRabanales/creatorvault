@@ -16,6 +16,7 @@ WORKDIR /app
 FROM base AS deps
 
 COPY package.json pnpm-lock.yaml ./
+COPY patches ./patches
 RUN pnpm install --frozen-lockfile
 
 # ============================================
@@ -50,3 +51,4 @@ EXPOSE 3000
 ENV PORT=3000
 
 CMD ["pnpm", "start"]
+
