@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "mysql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1765874564787,
+      "tag": "0000_mute_tony_stark",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1765876685023,
+      "tag": "0001_jittery_crystal",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1765878091175,
+      "tag": "0002_big_the_order",
+      "breakpoints": true
+    }
+  ]
+}
