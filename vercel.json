@@ -1,6 +1,6 @@
 {
-  "buildCommand": "pnpm install && pnpm --filter client build",
-  "outputDirectory": "dist",
+  "buildCommand": "vite build",
+  "outputDirectory": "dist/public",
   "framework": "vite",
   "rewrites": [
     {
