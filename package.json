@@ -14,6 +14,7 @@
     "db:migrate": "drizzle-kit migrate",
     "db:test": "node scripts/test-db-connection.js",
     "validate": "node scripts/validate-deployment.js",
+    "health": "node scripts/health-check.js",
     "predeploy": "node scripts/validate-deployment.js"
   },
   "dependencies": {

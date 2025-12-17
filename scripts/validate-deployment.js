@@ -23,31 +23,32 @@ const errors = [];
 console.log('🚀 CreatorVault Deployment Validation\n');
 console.log('='.repeat(50));
 
-// Required environment variables
+// Required environment variables for production
 const requiredVars = {
   DATABASE_URL: {
     required: true,
     description: 'Database connection string',
-    validate: (val) => val.startsWith('mysql://') || val.startsWith('postgresql://'),
+    validate: (val) => val.startsWith('mysql://') || val.startsWith('postgresql://') || val.startsWith('postgres://'),
   },
   JWT_SECRET: {
     required: true,
     description: 'JWT secret for session management',
     validate: (val) => val.length >= 32,
   },
+};
+
+// Recommended variables for full functionality
+const recommendedVars = {
   STRIPE_SECRET_KEY: {
-    required: true,
-    description: 'Stripe secret key',
+    description: 'Stripe secret key (required for payments)',
     validate: (val) => val.startsWith('sk_'),
   },
   STRIPE_WEBHOOK_SECRET: {
-    required: true,
-    description: 'Stripe webhook secret',
+    description: 'Stripe webhook secret (required for payments)',
     validate: (val) => val.startsWith('whsec_'),
   },
   VITE_STRIPE_PUBLISHABLE_KEY: {
-    required: true,
-    description: 'Stripe publishable key',
+    description: 'Stripe publishable key (required for payments)',
     validate: (val) => val.startsWith('pk_'),
   },
 };
@@ -96,6 +97,24 @@ for (const [key, config] of Object.entries(requiredVars)) {
   }
 }
 
+console.log('\n📋 Checking Recommended Variables...\n');
+
+// Check recommended variables
+for (const [key, config] of Object.entries(recommendedVars)) {
+  const value = process.env[key];
+  
+  if (!value) {
+    console.log(`⚠️  ${key}: Not set - ${config.description}`);
+    warnings.push(`${key} not configured - payments may not work`);
+  } else if (config.validate && !config.validate(value)) {
+    console.log(`⚠️  ${key}: Invalid format - ${config.description}`);
+    warnings.push(`${key} has invalid format`);
+  } else {
+    const maskedValue = value.substring(0, 10) + '...';
+    console.log(`✅ ${key}: ${maskedValue}`);
+  }
+}
+
 console.log('\n📋 Checking Optional Variables...\n');
 
 // Check optional variables
@@ -104,7 +123,6 @@ for (const [key, config] of Object.entries(optionalVars)) {
   
   if (!value) {
     console.log(`⚠️  ${key}: Not set (using default: ${config.default}) - ${config.description}`);
-    warnings.push(`${key} not set, using default: ${config.default}`);
   } else {
     console.log(`✅ ${key}: ${value}`);
   }
