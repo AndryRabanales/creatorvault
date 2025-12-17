@@ -23,26 +23,45 @@ const warnings = [];
 const appTsxPath = join(__dirname, '..', 'client', 'src', 'App.tsx');
 const appTsxContent = readFileSync(appTsxPath, 'utf-8');
 
-// Extract route definitions
-const routeRegex = /<Route\s+path="([^"]+)"\s+component=\{([^}]+)\}/g;
+// Extract route definitions (handles both component={Component} and component={Component} syntax)
+const routeRegex = /<Route\s+path="([^"]+)"\s+component=\{([^}]+)\}|<Route\s+component=\{([^}]+)\}|<Route\s+path="([^"]+)"/g;
 const routes = [];
 let match;
 
 while ((match = routeRegex.exec(appTsxContent)) !== null) {
-  routes.push({
-    path: match[1],
-    component: match[2],
-  });
+  const path = match[1] || match[4] || null;
+  const component = match[2] || match[3] || 'NotFound';
+  
+  if (path || component !== 'NotFound') {
+    routes.push({
+      path: path || '(catch-all)',
+      component: component,
+    });
+  }
 }
 
 console.log(`\n📋 Found ${routes.length} routes in App.tsx\n`);
 
 // Verify each route's component exists
 const pagesDir = join(__dirname, '..', 'client', 'src', 'pages');
+const srcDir = join(__dirname, '..', 'client', 'src');
 
 routes.forEach(route => {
-  const componentFile = join(pagesDir, `${route.component}.tsx`);
-  const exists = existsSync(componentFile);
+  // Try pages directory first
+  let componentFile = join(pagesDir, `${route.component}.tsx`);
+  let exists = existsSync(componentFile);
+  
+  // If not found, try components directory
+  if (!exists) {
+    componentFile = join(srcDir, 'components', `${route.component}.tsx`);
+    exists = existsSync(componentFile);
+  }
+  
+  // If not found, try root src directory
+  if (!exists) {
+    componentFile = join(srcDir, `${route.component}.tsx`);
+    exists = existsSync(componentFile);
+  }
   
   if (exists) {
     console.log(`✅ ${route.path} → ${route.component}`);
@@ -72,7 +91,7 @@ Object.entries(pathCounts).forEach(([path, count]) => {
 const clientSrcDir = join(__dirname, '..', 'client', 'src');
 console.log('\n📋 Checking Link component usage...\n');
 
-// Read all .tsx files
+// Import filesystem functions at the top
 import { readdirSync, statSync } from 'fs';
 import { join as pathJoin } from 'path';
 
