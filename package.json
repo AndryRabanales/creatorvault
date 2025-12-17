@@ -15,6 +15,7 @@
     "db:test": "node scripts/test-db-connection.js",
     "validate": "node scripts/validate-deployment.js",
     "health": "node scripts/health-check.js",
+    "verify:routes": "node scripts/verify-routes.js",
     "predeploy": "node scripts/validate-deployment.js"
   },
   "dependencies": {
