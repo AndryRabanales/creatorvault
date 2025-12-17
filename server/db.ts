@@ -717,7 +717,7 @@ export async function recordCreatorPayout(
   payoutData: {
     stripePaymentId: string;
     amount: number;
-    status: string;
+    status: "pending" | "processing" | "completed" | "failed";
   }
 ) {
   const db = await getDb();
@@ -731,12 +731,12 @@ export async function recordCreatorPayout(
   await createPayment({
     campaignId: contract.campaignId,
     creatorId: contract.creatorId,
-    brandId: contract.brandId,
-    amount: payoutData.amount,
-    netAmount: payoutData.amount,
-    platformFee: 0,
+    contractId: contractId,
+    type: "sponsorship",
+    amount: payoutData.amount.toFixed(2),
+    netAmount: payoutData.amount.toFixed(2),
+    platformFee: "0.00",
     status: payoutData.status,
-    stripePaymentId: payoutData.stripePaymentId,
-    paymentType: "payout",
+    stripePayoutId: payoutData.stripePaymentId,
   });
 }

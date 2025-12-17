@@ -3,7 +3,9 @@ import { ENV } from "../_core/env";
 import { calculatePaymentSplit } from "./products";
 
 // Initialize Stripe with secret key
-const stripe = new Stripe(ENV.stripeSecretKey || "");
+// Use a dummy key for testing if STRIPE_SECRET_KEY is not set
+const stripeKey = ENV.stripeSecretKey || "sk_test_dummy_key_for_testing_only";
+const stripe = new Stripe(stripeKey);
 
 export { stripe };
 

@@ -13,7 +13,7 @@ router.post(
   async (req, res) => {
     const signature = req.headers["stripe-signature"];
 
-    if (!signature) {
+    if (!signature || Array.isArray(signature)) {
       console.error("[Stripe Webhook] No signature header");
       return res.status(400).send("No signature");
     }
