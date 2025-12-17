@@ -405,19 +405,81 @@ Cuando crezcas, puedes escalar:
 ## 🆘 Solución de Problemas Comunes
 
 ### Error: "Cannot connect to database"
-- Verifica que `DATABASE_URL` esté correctamente configurado
-- Asegúrate de incluir `?sslmode=require` al final
+**Síntomas**: La aplicación no puede conectarse a la base de datos
+**Soluciones**:
+- Verifica que `DATABASE_URL` esté correctamente configurado en las variables de entorno
+- Para PostgreSQL: Asegúrate de incluir `?sslmode=require` al final
+- Para MySQL: Verifica que incluya los parámetros SSL correctos
+- Prueba la conexión localmente con: `pnpm db:push`
+- Verifica que la IP del servidor esté en la whitelist (si aplica)
 
 ### Error: "Stripe webhook failed"
-- Verifica que el webhook secret sea correcto
-- Asegúrate de que la URL del webhook sea accesible públicamente
+**Síntomas**: Los webhooks de Stripe no se reciben o fallan la verificación
+**Soluciones**:
+- Verifica que el `STRIPE_WEBHOOK_SECRET` sea correcto
+- Asegúrate de que la URL del webhook sea accesible públicamente (no localhost)
+- La URL debe ser: `https://tu-dominio.com/api/stripe/webhook`
+- Verifica en el dashboard de Stripe que los eventos estén llegando
+- Revisa los logs del servidor para ver errores específicos
+- Asegúrate de que el webhook esté configurado para modo test/live correcto
 
-### Error: "CORS blocked"
-- Agrega tu dominio a la lista de orígenes permitidos en el backend
+### Error: "CORS blocked" o "Access-Control-Allow-Origin"
+**Síntomas**: El frontend no puede hacer requests al backend
+**Soluciones**:
+- Configura la variable `FRONTEND_URL` con la URL de tu frontend
+- En producción, asegúrate de usar HTTPS en ambos lados
+- Verifica que las cookies estén configuradas con `sameSite` correcto
+- Para desarrollo local, usa el mismo origen o configura CORS correctamente
 
-### Error: "Auth failed"
-- Verifica las URLs de callback en tu proveedor de auth
-- Asegúrate de que las variables de entorno estén configuradas
+### Error: "Auth failed" o "Invalid token"
+**Síntomas**: Los usuarios no pueden iniciar sesión
+**Soluciones**:
+- Verifica que `JWT_SECRET` esté configurado (mínimo 32 caracteres)
+- Verifica las URLs de callback en tu proveedor de auth (Auth0/Clerk)
+- Para Auth0: `https://tu-dominio.com/api/oauth/callback`
+- Asegúrate de que todas las variables de entorno de auth estén configuradas
+- Revisa que el dominio en Auth0/Clerk coincida con el configurado
+
+### Error: "Build failed" o "Module not found"
+**Síntomas**: El build falla en el CI/CD
+**Soluciones**:
+- Ejecuta `pnpm install` antes de `pnpm build`
+- Verifica que todas las dependencias estén en `package.json`
+- Limpia caché: `rm -rf node_modules pnpm-lock.yaml && pnpm install`
+- Verifica que la versión de Node.js sea >= 18
+
+### Error: "Port already in use"
+**Síntomas**: No puede iniciar el servidor porque el puerto está ocupado
+**Soluciones**:
+- El servidor intentará encontrar un puerto disponible automáticamente
+- Configura `PORT` en las variables de entorno
+- Mata procesos anteriores: `lsof -ti:3000 | xargs kill`
+
+### Error: "Database migrations failed"
+**Síntomas**: Las migraciones no se aplican correctamente
+**Soluciones**:
+- Ejecuta manualmente: `pnpm db:push`
+- Verifica que `DATABASE_URL` esté correcta
+- Revisa que el usuario de la base de datos tenga permisos para crear tablas
+- Para resetear (⚠️ PIERDE DATOS): Elimina todas las tablas y vuelve a ejecutar
+
+### Error: "Environment variables not found"
+**Síntomas**: La app no encuentra las variables de entorno
+**Soluciones**:
+- Asegúrate de configurar todas las variables en tu plataforma de hosting
+- Usa el script de validación: `pnpm validate`
+- Copia `.env.example` a `.env` y llena los valores
+- En Railway/Render: Ve a Settings → Environment Variables
+- En Vercel: Ve a Project Settings → Environment Variables
+
+### Error: "Invalid Stripe key"
+**Síntomas**: Stripe rechaza las operaciones
+**Soluciones**:
+- Verifica que uses las claves correctas (test vs live)
+- No mezcles claves de test con live
+- Para desarrollo: usa `sk_test_...` y `pk_test_...`
+- Para producción: usa `sk_live_...` y `pk_live_...`
+- Regenera las claves en el dashboard de Stripe si es necesario
 
 ---
 

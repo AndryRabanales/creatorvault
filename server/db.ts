@@ -691,3 +691,52 @@ export async function getBrandStats(brandId: number) {
     totalCreatorsHired: creatorsHired?.count || 0
   };
 }
+
+// ============ WEBHOOK HELPER FUNCTIONS ============
+export async function updateCampaignPaymentStatus(
+  campaignId: number,
+  paymentData: {
+    stripePaymentId?: string;
+    paymentStatus?: string;
+    amountPaid?: number;
+  }
+) {
+  const db = await getDb();
+  if (!db) return;
+  
+  const updateData: any = {};
+  if (paymentData.stripePaymentId) updateData.stripePaymentId = paymentData.stripePaymentId;
+  if (paymentData.paymentStatus) updateData.paymentStatus = paymentData.paymentStatus;
+  if (paymentData.amountPaid !== undefined) updateData.budget = paymentData.amountPaid;
+  
+  await db.update(campaigns).set(updateData).where(eq(campaigns.id, campaignId));
+}
+
+export async function recordCreatorPayout(
+  contractId: number,
+  payoutData: {
+    stripePaymentId: string;
+    amount: number;
+    status: string;
+  }
+) {
+  const db = await getDb();
+  if (!db) return;
+  
+  // Get contract to find creator
+  const contract = await getContractById(contractId);
+  if (!contract) return;
+  
+  // Create payment record
+  await createPayment({
+    campaignId: contract.campaignId,
+    creatorId: contract.creatorId,
+    brandId: contract.brandId,
+    amount: payoutData.amount,
+    netAmount: payoutData.amount,
+    platformFee: 0,
+    status: payoutData.status,
+    stripePaymentId: payoutData.stripePaymentId,
+    paymentType: "payout",
+  });
+}
