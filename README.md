@@ -38,40 +38,50 @@ Plataforma de patrocinios que conecta creadores de contenido con marcas, con pag
 
 ## 🚀 Quick Start
 
-### Requisitos
+### Prerequisites
 - Node.js 18+
-- pnpm
-- Base de datos MySQL/PostgreSQL
+- pnpm (`npm install -g pnpm`)
+- Database (MySQL/PostgreSQL)
 
-### Instalación
+### Installation
 
 ```bash
-# Clonar repositorio
+# Clone repository
 git clone https://github.com/TU_USUARIO/creatorvault.git
 cd creatorvault
 
-# Instalar dependencias
+# Install dependencies
 pnpm install
 
-# Configurar variables de entorno
+# Configure environment variables
 cp .env.example .env
-# Edita .env con tus credenciales
+# Edit .env with your credentials (see docs/ENV_VARIABLES.md)
 
-# Migrar base de datos
+# Run database migrations
 pnpm db:push
 
-# Iniciar en desarrollo
+# Validate configuration
+pnpm validate
+
+# Start development server
 pnpm dev
 ```
 
-### Scripts Disponibles
+**📖 For detailed setup instructions, see [Quick Start Guide](docs/QUICK_START.md)**
+
+### Available Scripts
 
 ```bash
-pnpm dev        # Desarrollo con hot reload
-pnpm build      # Build para producción
-pnpm start      # Iniciar en producción
-pnpm test       # Ejecutar tests
-pnpm db:push    # Migrar base de datos
+pnpm dev           # Development with hot reload
+pnpm build         # Build for production
+pnpm start         # Start production server
+pnpm test          # Run tests
+pnpm check         # TypeScript type checking
+pnpm validate      # Validate environment variables
+pnpm verify:routes # Verify route configuration
+pnpm health        # Check server health
+pnpm db:push       # Run database migrations
+pnpm db:test       # Test database connection
 ```
 
 ## 📁 Estructura del Proyecto
@@ -108,13 +118,34 @@ creatorvault/
 - **Pago al creador**: 80%
 - Los fondos se mantienen en escrow hasta la aprobación del entregable
 
-## 🔧 Configuración
+## 📚 Documentation
 
-Ver [docs/ENV_VARIABLES.md](docs/ENV_VARIABLES.md) para todas las variables de entorno.
+- **[Quick Start Guide](docs/QUICK_START.md)** - Get started in 5 minutes
+- **[Environment Variables](docs/ENV_VARIABLES.md)** - Complete environment configuration guide
+- **[Deployment Guide](DEPLOYMENT_GUIDE.md)** - Deploy to production
+- **[Deployment Checklist](DEPLOYMENT_CHECKLIST.md)** - Pre-deployment verification
+- **[Troubleshooting](docs/TROUBLESHOOTING.md)** - Common issues and solutions
+
+## 🔧 Configuration
+
+See [docs/ENV_VARIABLES.md](docs/ENV_VARIABLES.md) for all environment variables.
+
+### Quick Configuration Check
+
+```bash
+# Validate your environment setup
+pnpm validate
+
+# Check server health
+pnpm health
+
+# Verify routes
+pnpm verify:routes
+```
 
 ## 📖 Deployment
 
-Ver [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) para instrucciones completas de deployment.
+See [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) for complete deployment instructions.
 
 ### Opciones de Hosting
 
@@ -146,11 +177,30 @@ MIT License - ver [LICENSE](LICENSE) para más detalles.
 4. Push al branch (`git push origin feature/AmazingFeature`)
 5. Abre un Pull Request
 
-## 📞 Soporte
+## 🆘 Need Help?
+
+- **Having Issues?** Check the [Troubleshooting Guide](docs/TROUBLESHOOTING.md)
+- **Deployment Problems?** See [Deployment Checklist](DEPLOYMENT_CHECKLIST.md)
+- **Configuration Questions?** Read [Environment Variables Guide](docs/ENV_VARIABLES.md)
+- **Getting Started?** Follow the [Quick Start Guide](docs/QUICK_START.md)
+
+## 📞 Support
 
 - 📧 Email: soporte@creatorvault.com
-- 📖 Docs: [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)
+- 📖 Documentation: [docs/](docs/)
+- 🐛 Issues: [GitHub Issues](https://github.com/TU_USUARIO/creatorvault/issues)
+
+## ✅ Pre-Deployment Validation
+
+Before deploying, run these checks:
+
+```bash
+pnpm check          # TypeScript compilation
+pnpm validate       # Environment variables
+pnpm verify:routes  # Route configuration
+pnpm build          # Production build test
+```
 
 ---
 
-Hecho con ❤️ para creadores y marcas
+Made with ❤️ for creators and brands

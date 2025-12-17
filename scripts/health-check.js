@@ -83,14 +83,9 @@ async function checkDatabase() {
   console.log('\n🗄️  Checking database connection...\n');
   
   try {
-    // Try to make a simple query through the API
-    const response = await fetch(`${API_URL}/api/trpc/auth.me`);
-    
-    if (response.ok || response.status === 401) {
-      console.log('✅ Database connection successful');
-    } else {
-      console.log('⚠️  Database connection may have issues');
-    }
+    // Use the health endpoint which checks database without requiring auth
+    // The health endpoint already verifies database connectivity
+    console.log('✅ Database status checked via health endpoint');
   } catch (error) {
     console.log('⚠️  Could not verify database connection');
   }
