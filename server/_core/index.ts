@@ -3,7 +3,7 @@ import express from "express";
 import { createServer } from "http";
 import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
-import { registerOAuthRoutes } from "./oauth";
+import { registerAuthRoutes } from "./auth-providers";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
@@ -74,11 +74,12 @@ async function startServer() {
       environment: ENV.nodeEnv,
       database: ENV.databaseUrl ? "configured" : "not configured",
       stripe: ENV.stripeSecretKey ? "configured" : "not configured",
+      auth: ENV.auth0Domain ? "auth0" : ENV.clerkSecretKey ? "clerk" : ENV.oAuthServerUrl ? "manus" : "none",
     });
   });
 
-  // OAuth callback under /api/oauth/callback
-  registerOAuthRoutes(app);
+  // Authentication routes (OAuth callback, etc.)
+  registerAuthRoutes(app);
   
   // tRPC API
   app.use(
