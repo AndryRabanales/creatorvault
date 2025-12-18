@@ -20,11 +20,13 @@ import AdminDashboard from "./pages/AdminDashboard";
 import Messages from "./pages/Messages";
 import Analytics from "./pages/Analytics";
 import Reviews from "./pages/Reviews";
+import DevLogin from "./pages/DevLogin";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
+      <Route path="/login" component={DevLogin} />
       <Route path="/select-role" component={RoleSelect} />
       <Route path="/onboarding/creator" component={CreatorOnboarding} />
       <Route path="/onboarding/brand" component={BrandOnboarding} />

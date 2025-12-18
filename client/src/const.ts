@@ -37,9 +37,8 @@ export const getLoginUrl = () => {
     return url.toString();
   }
 
-  // Fallback: Use backend OAuth login endpoint
-  const apiUrl = import.meta.env.VITE_API_URL || window.location.origin;
-  return `${apiUrl}/api/oauth/login`;
+  // Fallback: If no provider is configured, use internal Dev Auth page
+  return "/login";
 };
 
 /**

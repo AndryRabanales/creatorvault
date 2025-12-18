@@ -41,17 +41,8 @@ export function registerAuthRoutes(app: Express) {
     console.log("[Auth] Using Manus OAuth (development only)");
     registerManusRoutes(app);
   } else {
-    console.warn("[Auth] No authentication provider configured!");
-    console.warn("[Auth] Configure Auth0, Clerk, or Manus OAuth in environment variables");
-
-    // Register fallback route to prevent 404s
-    app.get("/api/oauth/login", (req, res) => {
-      res.status(400).json({
-        error: "No authentication provider configured",
-        message: "Please configure Auth0, Clerk, or Manus OAuth variables in your backend environment.",
-        details: "See .env.example for required variables"
-      });
-    });
+    console.log("[Auth] Dev mode or missing providers - Enabling Dev Auth");
+    registerDevRoutes(app);
   }
 }
 
@@ -228,5 +219,88 @@ function registerManusRoutes(app: Express) {
       console.error("[Manus OAuth] Callback failed", error);
       res.status(500).json({ error: "OAuth callback failed" });
     }
+  });
+}
+
+/**
+ * Dev Auth implementation
+ * Simulates login for testing/MVP without external providers
+ */
+function registerDevRoutes(app: Express) {
+  // Login page fallback redirect
+  app.get("/api/oauth/login", (req, res) => {
+    res.redirect(`${ENV.frontendUrl}/login`);
+  });
+
+  app.post("/api/auth/dev-login", async (req, res) => {
+    const { email, role, name } = req.body;
+
+    if (!email || !role) {
+      return res.status(400).json({ error: "Email and role are required" });
+    }
+
+    try {
+      // Deterministic OpenID based on email for testing
+      const openId = `dev|${Buffer.from(email).toString('base64')}`;
+
+      // Create or update user
+      await db.upsertUser({
+        openId,
+        name: name || email.split('@')[0],
+        email,
+        role: role as "creator" | "brand",
+        loginMethod: "dev_auth",
+        lastSignedIn: new Date(),
+      });
+
+      // Get user ID
+      const user = await db.getUserByOpenId(openId);
+      if (!user) throw new Error("Failed to create user");
+
+      // Create profile if missing based on role
+      if (role === "creator") {
+        const profile = await db.getCreatorProfileByUserId(user.id);
+        if (!profile) {
+          await db.createCreatorProfile({
+            userId: user.id,
+            name: name || user.name || "Creator",
+            tier: "tier1",
+            guaranteedIncome: "500.00",
+            onboardingComplete: true
+          });
+        }
+      } else if (role === "brand") {
+        const profile = await db.getBrandProfileByUserId(user.id);
+        if (!profile) {
+          await db.createBrandProfile({
+            userId: user.id,
+            companyName: name || "Brand Inc.",
+            onboardingComplete: true
+          });
+        }
+      }
+
+      // Create session token
+      const sessionToken = await sdk.createSessionToken(openId, {
+        name: user.name || "",
+        expiresInMs: ONE_YEAR_MS,
+      });
+
+      // Set cookie
+      const cookieOptions = getSessionCookieOptions(req);
+      res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+
+      res.json({ success: true, user });
+    } catch (error) {
+      console.error("[DevAuth] Login failed:", error);
+      res.status(500).json({ error: "Dev login failed" });
+    }
+  });
+
+  // Simple logout
+  app.post("/api/auth/logout", (req, res) => {
+    const cookieOptions = getSessionCookieOptions(req);
+    res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
+    res.json({ success: true });
   });
 }
