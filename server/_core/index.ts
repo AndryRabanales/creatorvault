@@ -45,6 +45,8 @@ async function startServer() {
       "http://localhost:3000",
       "http://localhost:5173",
       "http://localhost:5174",
+      "https://creatorvault-woad.vercel.app",
+      "https://creatorvault.vercel.app",
     ];
 
     const origin = req.headers.origin;
