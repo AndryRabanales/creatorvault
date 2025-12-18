@@ -43,6 +43,15 @@ export function registerAuthRoutes(app: Express) {
   } else {
     console.warn("[Auth] No authentication provider configured!");
     console.warn("[Auth] Configure Auth0, Clerk, or Manus OAuth in environment variables");
+
+    // Register fallback route to prevent 404s
+    app.get("/api/oauth/login", (req, res) => {
+      res.status(400).json({
+        error: "No authentication provider configured",
+        message: "Please configure Auth0, Clerk, or Manus OAuth variables in your backend environment.",
+        details: "See .env.example for required variables"
+      });
+    });
   }
 }
 
@@ -54,7 +63,7 @@ function registerAuth0Routes(app: Express) {
   app.get("/api/oauth/login", (req, res) => {
     const redirectUri = `${ENV.backendUrl}/api/oauth/callback`;
     const authUrl = new URL(`https://${ENV.auth0Domain}/authorize`);
-    
+
     authUrl.searchParams.set("response_type", "code");
     authUrl.searchParams.set("client_id", ENV.auth0ClientId);
     authUrl.searchParams.set("redirect_uri", redirectUri);
@@ -144,7 +153,7 @@ function registerAuth0Routes(app: Express) {
 function registerClerkRoutes(app: Express) {
   // Clerk handles most auth on the client side
   // We just need to validate sessions on the backend
-  
+
   app.post("/api/auth/clerk-callback", async (req, res) => {
     const { userId, email, firstName, lastName } = req.body;
 
@@ -214,7 +223,7 @@ function registerManusRoutes(app: Express) {
       const cookieOptions = getSessionCookieOptions(req);
       res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
 
-      res.redirect(302, "/");
+      res.redirect(302, ENV.frontendUrl || "/");
     } catch (error) {
       console.error("[Manus OAuth] Callback failed", error);
       res.status(500).json({ error: "OAuth callback failed" });
