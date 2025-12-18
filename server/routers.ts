@@ -59,7 +59,7 @@ Generated on: ${new Date().toLocaleDateString()}
 
 export const appRouter = router({
   system: systemRouter,
-  
+
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
     logout: publicProcedure.mutation(({ ctx }) => {
@@ -80,7 +80,7 @@ export const appRouter = router({
     getProfile: protectedProcedure.query(async ({ ctx }) => {
       return db.getCreatorProfileByUserId(ctx.user.id);
     }),
-    
+
     getProfileById: publicProcedure
       .input(z.object({ id: z.number() }))
       .query(async ({ input }) => {
@@ -88,7 +88,7 @@ export const appRouter = router({
         if (!profile) throw new TRPCError({ code: "NOT_FOUND" });
         return profile;
       }),
-    
+
     createProfile: protectedProcedure
       .input(z.object({
         name: z.string().min(2).max(50),
@@ -103,9 +103,20 @@ export const appRouter = router({
         // Check if profile already exists
         const existing = await db.getCreatorProfileByUserId(ctx.user.id);
         if (existing) {
-          throw new TRPCError({ code: "CONFLICT", message: "Profile already exists" });
+          // Update existing profile instead of throwing error
+          const { tier, guaranteedIncome } = calculateTier(input.followers);
+          await db.updateCreatorProfile(ctx.user.id, {
+            name: input.name,
+            bio: input.bio,
+            niche: input.niche,
+            followers: input.followers,
+            tier,
+            guaranteedIncome,
+            onboardingComplete: true,
+          });
+          return { success: true, tier, guaranteedIncome };
         }
-        
+
         const { tier, guaranteedIncome } = calculateTier(input.followers);
         const profile = await db.createCreatorProfile({
           userId: ctx.user.id,
@@ -117,7 +128,7 @@ export const appRouter = router({
           guaranteedIncome,
           onboardingComplete: true,
         });
-        
+
         // Add social accounts if provided
         if (profile && (input.instagram || input.tiktok || input.youtube)) {
           const creatorProfile = await db.getCreatorProfileByUserId(ctx.user.id);
@@ -133,11 +144,11 @@ export const appRouter = router({
             }
           }
         }
-        
+
         await db.updateUserRole(ctx.user.id, "creator");
         return { success: true, tier, guaranteedIncome };
       }),
-    
+
     updateProfile: protectedProcedure
       .input(z.object({
         name: z.string().optional(),
@@ -157,36 +168,36 @@ export const appRouter = router({
         await db.updateCreatorProfile(ctx.user.id, updates);
         return { success: true };
       }),
-    
+
     getStats: protectedProcedure.query(async ({ ctx }) => {
       const profile = await db.getCreatorProfileByUserId(ctx.user.id);
       if (!profile) throw new TRPCError({ code: "NOT_FOUND" });
       return db.getCreatorStats(profile.id);
     }),
-    
+
     getApplications: protectedProcedure.query(async ({ ctx }) => {
       const profile = await db.getCreatorProfileByUserId(ctx.user.id);
       if (!profile) return [];
       return db.getApplicationsByCreatorId(profile.id);
     }),
-    
+
     getContracts: protectedProcedure.query(async ({ ctx }) => {
       const profile = await db.getCreatorProfileByUserId(ctx.user.id);
       if (!profile) return [];
       return db.getContractsByCreatorId(profile.id);
     }),
-    
+
     getPayments: protectedProcedure.query(async ({ ctx }) => {
       const profile = await db.getCreatorProfileByUserId(ctx.user.id);
       if (!profile) return [];
       return db.getPaymentsByCreatorId(profile.id);
     }),
-    
+
     // Stripe Connect onboarding
     setupStripeConnect: protectedProcedure.mutation(async ({ ctx }) => {
       const profile = await db.getCreatorProfileByUserId(ctx.user.id);
       if (!profile) throw new TRPCError({ code: "NOT_FOUND" });
-      
+
       if (!profile.stripeAccountId) {
         const account = await createConnectAccount({
           creatorId: profile.id,
@@ -196,24 +207,24 @@ export const appRouter = router({
         await db.updateCreatorProfile(ctx.user.id, { stripeAccountId: account.id });
         profile.stripeAccountId = account.id;
       }
-      
+
       const origin = ctx.req.headers.origin || "http://localhost:3000";
       const accountLink = await createConnectOnboardingLink({
         accountId: profile.stripeAccountId,
         refreshUrl: `${origin}/dashboard/creator/settings`,
         returnUrl: `${origin}/dashboard/creator/settings?stripe=success`,
       });
-      
+
       return { url: accountLink.url };
     }),
-    
+
     // Social accounts
     getSocialAccounts: protectedProcedure.query(async ({ ctx }) => {
       const profile = await db.getCreatorProfileByUserId(ctx.user.id);
       if (!profile) return [];
       return db.getSocialAccountsByCreatorId(profile.id);
     }),
-    
+
     addSocialAccount: protectedProcedure
       .input(z.object({
         platform: z.enum(["instagram", "tiktok", "youtube", "twitter", "twitch"]),
@@ -224,7 +235,7 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         const profile = await db.getCreatorProfileByUserId(ctx.user.id);
         if (!profile) throw new TRPCError({ code: "NOT_FOUND" });
-        
+
         await db.createSocialAccount({
           creatorId: profile.id,
           platform: input.platform,
@@ -232,23 +243,23 @@ export const appRouter = router({
           profileUrl: input.profileUrl,
           followers: input.followers,
         });
-        
+
         // Update total followers
         const accounts = await db.getSocialAccountsByCreatorId(profile.id);
         const totalFollowers = accounts.reduce((sum, acc) => sum + (acc.followers || 0), 0);
         const { tier, guaranteedIncome } = calculateTier(totalFollowers);
         await db.updateCreatorProfile(ctx.user.id, { followers: totalFollowers, tier, guaranteedIncome });
-        
+
         return { success: true };
       }),
-    
+
     removeSocialAccount: protectedProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ ctx, input }) => {
         await db.deleteSocialAccount(input.id);
         return { success: true };
       }),
-    
+
     // Reviews received
     getReviews: protectedProcedure.query(async ({ ctx }) => {
       const profile = await db.getCreatorProfileByUserId(ctx.user.id);
@@ -262,7 +273,7 @@ export const appRouter = router({
     getProfile: protectedProcedure.query(async ({ ctx }) => {
       return db.getBrandProfileByUserId(ctx.user.id);
     }),
-    
+
     getProfileById: publicProcedure
       .input(z.object({ id: z.number() }))
       .query(async ({ input }) => {
@@ -270,7 +281,7 @@ export const appRouter = router({
         if (!profile) throw new TRPCError({ code: "NOT_FOUND" });
         return profile;
       }),
-    
+
     createProfile: protectedProcedure
       .input(z.object({
         companyName: z.string().min(1),
@@ -290,7 +301,7 @@ export const appRouter = router({
         await db.updateUserRole(ctx.user.id, "brand");
         return { success: true };
       }),
-    
+
     updateProfile: protectedProcedure
       .input(z.object({
         companyName: z.string().optional(),
@@ -303,25 +314,25 @@ export const appRouter = router({
         await db.updateBrandProfile(ctx.user.id, input);
         return { success: true };
       }),
-    
+
     getStats: protectedProcedure.query(async ({ ctx }) => {
       const profile = await db.getBrandProfileByUserId(ctx.user.id);
       if (!profile) throw new TRPCError({ code: "NOT_FOUND" });
       return db.getBrandStats(profile.id);
     }),
-    
+
     getCampaigns: protectedProcedure.query(async ({ ctx }) => {
       const profile = await db.getBrandProfileByUserId(ctx.user.id);
       if (!profile) return [];
       return db.getCampaignsByBrandId(profile.id);
     }),
-    
+
     getContracts: protectedProcedure.query(async ({ ctx }) => {
       const profile = await db.getBrandProfileByUserId(ctx.user.id);
       if (!profile) return [];
       return db.getContractsByBrandId(profile.id);
     }),
-    
+
     // Reviews received
     getReviews: protectedProcedure.query(async ({ ctx }) => {
       const profile = await db.getBrandProfileByUserId(ctx.user.id);
@@ -335,7 +346,7 @@ export const appRouter = router({
     getAll: publicProcedure.query(async () => {
       return db.getActiveCampaigns();
     }),
-    
+
     getById: publicProcedure
       .input(z.object({ id: z.number() }))
       .query(async ({ input }) => {
@@ -346,7 +357,7 @@ export const appRouter = router({
         await db.createAnalyticsEvent({ eventType: "campaign_view", campaignId: input.id });
         return campaign;
       }),
-    
+
     create: protectedProcedure
       .input(z.object({
         title: z.string().min(1),
@@ -360,7 +371,7 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         const profile = await db.getBrandProfileByUserId(ctx.user.id);
         if (!profile) throw new TRPCError({ code: "NOT_FOUND", message: "Brand profile not found" });
-        
+
         const campaignId = await db.createCampaign({
           brandId: profile.id,
           title: input.title,
@@ -372,10 +383,10 @@ export const appRouter = router({
           deadline: input.deadline,
           status: "draft",
         });
-        
+
         return { success: true, campaignId };
       }),
-    
+
     update: protectedProcedure
       .input(z.object({
         id: z.number(),
@@ -393,19 +404,19 @@ export const appRouter = router({
         await db.updateCampaign(id, updates as any);
         return { success: true };
       }),
-    
+
     // Create Stripe checkout for campaign deposit
     createDepositSession: protectedProcedure
       .input(z.object({ campaignId: z.number() }))
       .mutation(async ({ ctx, input }) => {
         const campaign = await db.getCampaignById(input.campaignId);
         if (!campaign) throw new TRPCError({ code: "NOT_FOUND" });
-        
+
         const profile = await db.getBrandProfileByUserId(ctx.user.id);
         if (!profile || profile.id !== campaign.brandId) {
           throw new TRPCError({ code: "FORBIDDEN" });
         }
-        
+
         const origin = ctx.req.headers.origin || "http://localhost:3000";
         const session = await createCampaignDepositSession({
           campaignId: campaign.id,
@@ -417,16 +428,16 @@ export const appRouter = router({
           successUrl: `${origin}/dashboard/brand/campaigns/${campaign.id}?payment=success`,
           cancelUrl: `${origin}/dashboard/brand/campaigns/${campaign.id}?payment=cancelled`,
         });
-        
+
         return { url: session.url };
       }),
-    
+
     activate: protectedProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ ctx, input }) => {
         const campaign = await db.getCampaignById(input.id);
         if (!campaign) throw new TRPCError({ code: "NOT_FOUND" });
-        
+
         // For MVP, allow activation without actual payment (simulated)
         await db.updateCampaign(input.id, { status: "active", fundsDeposited: true });
         await db.createEscrow({
@@ -435,10 +446,10 @@ export const appRouter = router({
           amount: campaign.budget,
           status: "held",
         });
-        
+
         return { success: true };
       }),
-    
+
     complete: protectedProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ ctx, input }) => {
@@ -449,7 +460,7 @@ export const appRouter = router({
         }
         return { success: true };
       }),
-    
+
     getApplications: protectedProcedure
       .input(z.object({ campaignId: z.number() }))
       .query(async ({ input }) => {
@@ -468,20 +479,20 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         const profile = await db.getCreatorProfileByUserId(ctx.user.id);
         if (!profile) throw new TRPCError({ code: "NOT_FOUND", message: "Creator profile not found" });
-        
+
         const existing = await db.getExistingApplication(input.campaignId, profile.id);
         if (existing) throw new TRPCError({ code: "CONFLICT", message: "Already applied" });
-        
+
         await db.createApplication({
           campaignId: input.campaignId,
           creatorId: profile.id,
           message: input.message,
           proposedRate: input.proposedRate?.toFixed(2),
         });
-        
+
         await db.incrementCampaignApplications(input.campaignId);
         await db.createAnalyticsEvent({ eventType: "campaign_apply", campaignId: input.campaignId, creatorId: profile.id });
-        
+
         // Create notification for brand
         const campaign = await db.getCampaignById(input.campaignId);
         if (campaign) {
@@ -496,31 +507,31 @@ export const appRouter = router({
             });
           }
         }
-        
+
         return { success: true };
       }),
-    
+
     approve: protectedProcedure
       .input(z.object({ applicationId: z.number() }))
       .mutation(async ({ ctx, input }) => {
         const application = await db.getApplicationById(input.applicationId);
         if (!application) throw new TRPCError({ code: "NOT_FOUND" });
-        
+
         const campaign = await db.getCampaignById(application.campaignId);
         if (!campaign) throw new TRPCError({ code: "NOT_FOUND" });
-        
+
         const creator = await db.getCreatorProfileById(application.creatorId);
         if (!creator) throw new TRPCError({ code: "NOT_FOUND" });
-        
+
         const brand = await db.getBrandProfileById(campaign.brandId);
         if (!brand) throw new TRPCError({ code: "NOT_FOUND" });
-        
+
         await db.updateApplication(input.applicationId, { status: "approved" });
-        
+
         // Calculate payment per creator
         const paymentPerCreator = parseFloat(campaign.budget) / (campaign.creatorsNeeded || 1);
         const { platformFee, creatorPayout } = calculatePaymentSplit(paymentPerCreator);
-        
+
         // Create contract
         const terms = generateContractTerms(campaign.title, creator.name, brand.companyName, paymentPerCreator.toFixed(2));
         await db.createContract({
@@ -535,13 +546,13 @@ export const appRouter = router({
           brandSigned: true,
           brandSignedAt: new Date(),
         });
-        
+
         // Update campaign status
-        await db.updateCampaign(campaign.id, { 
+        await db.updateCampaign(campaign.id, {
           status: "in_progress",
           creatorsApproved: (campaign.creatorsApproved || 0) + 1
         });
-        
+
         // Notify creator
         await db.createNotification({
           userId: creator.userId,
@@ -550,21 +561,21 @@ export const appRouter = router({
           message: `Your application for "${campaign.title}" has been approved. Please sign the contract.`,
           link: `/dashboard/creator/contracts`,
         });
-        
+
         return { success: true };
       }),
-    
+
     reject: protectedProcedure
       .input(z.object({ applicationId: z.number() }))
       .mutation(async ({ ctx, input }) => {
         const application = await db.getApplicationById(input.applicationId);
         if (!application) throw new TRPCError({ code: "NOT_FOUND" });
-        
+
         await db.updateApplication(input.applicationId, { status: "rejected" });
-        
+
         const creator = await db.getCreatorProfileById(application.creatorId);
         const campaign = await db.getCampaignById(application.campaignId);
-        
+
         if (creator && campaign) {
           await db.createNotification({
             userId: creator.userId,
@@ -574,7 +585,7 @@ export const appRouter = router({
             link: `/marketplace`,
           });
         }
-        
+
         return { success: true };
       }),
   }),
@@ -586,22 +597,22 @@ export const appRouter = router({
       .query(async ({ input }) => {
         return db.getContractById(input.id);
       }),
-    
+
     getByApplicationId: protectedProcedure
       .input(z.object({ applicationId: z.number() }))
       .query(async ({ input }) => {
         return db.getContractByApplicationId(input.applicationId);
       }),
-    
+
     sign: protectedProcedure
-      .input(z.object({ 
+      .input(z.object({
         contractId: z.number(),
         signature: z.string().min(1, "Signature is required")
       }))
       .mutation(async ({ ctx, input }) => {
         const contract = await db.getContractById(input.contractId);
         if (!contract) throw new TRPCError({ code: "NOT_FOUND" });
-        
+
         const profile = await db.getCreatorProfileByUserId(ctx.user.id);
         if (!profile || profile.id !== contract.creatorId) {
           throw new TRPCError({ code: "FORBIDDEN" });
@@ -610,20 +621,20 @@ export const appRouter = router({
         // Verify signature matches profile name exactly (case-insensitive for better UX, or strict?)
         // Strict is safer for "Digital Contract" feel.
         if (input.signature.trim() !== profile.name) {
-          throw new TRPCError({ 
-            code: "BAD_REQUEST", 
-            message: `Signature "${input.signature}" does not match your profile name "${profile.name}". Please type your full name exactly.` 
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: `Signature "${input.signature}" does not match your profile name "${profile.name}". Please type your full name exactly.`
           });
         }
-        
+
         await db.updateContract(input.contractId, {
           creatorSigned: true,
           creatorSignedAt: new Date(),
           status: "active",
         });
-        
+
         await db.createAnalyticsEvent({ eventType: "contract_signed", creatorId: profile.id, campaignId: contract.campaignId });
-        
+
         // Notify brand
         const brand = await db.getBrandProfileById(contract.brandId);
         const campaign = await db.getCampaignById(contract.campaignId);
@@ -636,7 +647,7 @@ export const appRouter = router({
             link: `/dashboard/brand/campaigns/${campaign.id}`,
           });
         }
-        
+
         return { success: true };
       }),
   }),
@@ -652,15 +663,15 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         const application = await db.getApplicationById(input.applicationId);
         if (!application) throw new TRPCError({ code: "NOT_FOUND" });
-        
+
         await db.createDeliverable({
           applicationId: input.applicationId,
           link: input.link,
           description: input.description,
         });
-        
+
         await db.createAnalyticsEvent({ eventType: "deliverable_submitted", campaignId: application.campaignId });
-        
+
         // Notify brand
         const campaign = await db.getCampaignById(application.campaignId);
         if (campaign) {
@@ -675,24 +686,24 @@ export const appRouter = router({
             });
           }
         }
-        
+
         return { success: true };
       }),
-    
+
     getByApplicationId: protectedProcedure
       .input(z.object({ applicationId: z.number() }))
       .query(async ({ input }) => {
         return db.getDeliverablesByApplicationId(input.applicationId);
       }),
-    
+
     approve: protectedProcedure
       .input(z.object({ deliverableId: z.number() }))
       .mutation(async ({ ctx, input }) => {
         const deliverable = await db.getDeliverableById(input.deliverableId);
         if (!deliverable) throw new TRPCError({ code: "NOT_FOUND" });
-        
+
         await db.updateDeliverable(input.deliverableId, { status: "approved", reviewedAt: new Date() });
-        
+
         // Get contract and create payment
         const contract = await db.getContractByApplicationId(deliverable.applicationId);
         if (contract) {
@@ -707,18 +718,18 @@ export const appRouter = router({
             status: "completed",
             processedAt: new Date(),
           });
-          
+
           await db.updateContract(contract.id, { status: "completed" });
           await db.createAnalyticsEvent({ eventType: "deliverable_approved", campaignId: contract.campaignId, creatorId: contract.creatorId });
           await db.createAnalyticsEvent({ eventType: "payment_completed", campaignId: contract.campaignId, creatorId: contract.creatorId });
-          
+
           // Update creator stats
           const creator = await db.getCreatorProfileById(contract.creatorId);
           if (creator) {
             await db.updateCreatorProfileById(creator.id, {
               completedCampaigns: (creator.completedCampaigns || 0) + 1
             });
-            
+
             await db.createNotification({
               userId: creator.userId,
               type: "payment_received",
@@ -728,19 +739,19 @@ export const appRouter = router({
             });
           }
         }
-        
+
         return { success: true };
       }),
-    
+
     reject: protectedProcedure
       .input(z.object({ deliverableId: z.number(), feedback: z.string().optional() }))
       .mutation(async ({ ctx, input }) => {
-        await db.updateDeliverable(input.deliverableId, { 
-          status: "rejected", 
+        await db.updateDeliverable(input.deliverableId, {
+          status: "rejected",
           feedback: input.feedback,
-          reviewedAt: new Date() 
+          reviewedAt: new Date()
         });
-        
+
         const deliverable = await db.getDeliverableById(input.deliverableId);
         if (deliverable) {
           const application = await db.getApplicationById(deliverable.applicationId);
@@ -758,17 +769,17 @@ export const appRouter = router({
             }
           }
         }
-        
+
         return { success: true };
       }),
-    
+
     requestRevision: protectedProcedure
       .input(z.object({ deliverableId: z.number(), feedback: z.string() }))
       .mutation(async ({ ctx, input }) => {
-        await db.updateDeliverable(input.deliverableId, { 
-          status: "revision_requested", 
+        await db.updateDeliverable(input.deliverableId, {
+          status: "revision_requested",
           feedback: input.feedback,
-          reviewedAt: new Date() 
+          reviewedAt: new Date()
         });
         return { success: true };
       }),
@@ -779,7 +790,7 @@ export const appRouter = router({
     getConversations: protectedProcedure.query(async ({ ctx }) => {
       const creatorProfile = await db.getCreatorProfileByUserId(ctx.user.id);
       const brandProfile = await db.getBrandProfileByUserId(ctx.user.id);
-      
+
       if (creatorProfile) {
         return db.getConversationsByCreatorId(creatorProfile.id);
       } else if (brandProfile) {
@@ -787,13 +798,13 @@ export const appRouter = router({
       }
       return [];
     }),
-    
+
     getMessages: protectedProcedure
       .input(z.object({ conversationId: z.number() }))
       .query(async ({ input }) => {
         return db.getMessagesByConversationId(input.conversationId);
       }),
-    
+
     startConversation: protectedProcedure
       .input(z.object({
         creatorId: z.number().optional(),
@@ -803,30 +814,30 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         const creatorProfile = await db.getCreatorProfileByUserId(ctx.user.id);
         const brandProfile = await db.getBrandProfileByUserId(ctx.user.id);
-        
+
         let creatorId = input.creatorId;
         let brandId = input.brandId;
-        
+
         if (creatorProfile) creatorId = creatorProfile.id;
         if (brandProfile) brandId = brandProfile.id;
-        
+
         if (!creatorId || !brandId) {
           throw new TRPCError({ code: "BAD_REQUEST", message: "Both creator and brand required" });
         }
-        
+
         // Check if conversation exists
         const existing = await db.getConversationByParticipants(creatorId, brandId, input.campaignId);
         if (existing) return { conversationId: existing.id };
-        
+
         const conversationId = await db.createConversation({
           creatorId,
           brandId,
           campaignId: input.campaignId,
         });
-        
+
         return { conversationId };
       }),
-    
+
     sendMessage: protectedProcedure
       .input(z.object({
         conversationId: z.number(),
@@ -837,13 +848,13 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         const conversation = await db.getConversationById(input.conversationId);
         if (!conversation) throw new TRPCError({ code: "NOT_FOUND" });
-        
+
         const creatorProfile = await db.getCreatorProfileByUserId(ctx.user.id);
         const brandProfile = await db.getBrandProfileByUserId(ctx.user.id);
-        
+
         let senderId: number;
         let senderType: "creator" | "brand";
-        
+
         if (creatorProfile && creatorProfile.id === conversation.creatorId) {
           senderId = creatorProfile.id;
           senderType = "creator";
@@ -853,7 +864,7 @@ export const appRouter = router({
         } else {
           throw new TRPCError({ code: "FORBIDDEN" });
         }
-        
+
         await db.createMessage({
           conversationId: input.conversationId,
           senderId,
@@ -862,7 +873,7 @@ export const appRouter = router({
           attachmentUrl: input.attachmentUrl,
           attachmentType: input.attachmentType,
         });
-        
+
         // Update conversation
         const updateData: Record<string, unknown> = { lastMessageAt: new Date() };
         if (senderType === "creator") {
@@ -871,14 +882,14 @@ export const appRouter = router({
           updateData.creatorUnread = (conversation.creatorUnread || 0) + 1;
         }
         await db.updateConversation(input.conversationId, updateData);
-        
+
         await db.createAnalyticsEvent({ eventType: "message_sent" });
-        
+
         // Create notification
-        const recipientProfile = senderType === "creator" 
+        const recipientProfile = senderType === "creator"
           ? await db.getBrandProfileById(conversation.brandId)
           : await db.getCreatorProfileById(conversation.creatorId);
-        
+
         if (recipientProfile) {
           await db.createNotification({
             userId: recipientProfile.userId,
@@ -888,22 +899,22 @@ export const appRouter = router({
             link: `/messages/${input.conversationId}`,
           });
         }
-        
+
         return { success: true };
       }),
-    
+
     markAsRead: protectedProcedure
       .input(z.object({ conversationId: z.number() }))
       .mutation(async ({ ctx, input }) => {
         const creatorProfile = await db.getCreatorProfileByUserId(ctx.user.id);
         const brandProfile = await db.getBrandProfileByUserId(ctx.user.id);
-        
+
         if (creatorProfile) {
           await db.markMessagesAsRead(input.conversationId, "creator");
         } else if (brandProfile) {
           await db.markMessagesAsRead(input.conversationId, "brand");
         }
-        
+
         return { success: true };
       }),
   }),
@@ -919,15 +930,15 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         const contract = await db.getContractById(input.contractId);
         if (!contract) throw new TRPCError({ code: "NOT_FOUND" });
-        
+
         const creatorProfile = await db.getCreatorProfileByUserId(ctx.user.id);
         const brandProfile = await db.getBrandProfileByUserId(ctx.user.id);
-        
+
         let reviewerId: number;
         let reviewerType: "creator" | "brand";
         let revieweeId: number;
         let revieweeType: "creator" | "brand";
-        
+
         if (creatorProfile && creatorProfile.id === contract.creatorId) {
           reviewerId = creatorProfile.id;
           reviewerType = "creator";
@@ -941,11 +952,11 @@ export const appRouter = router({
         } else {
           throw new TRPCError({ code: "FORBIDDEN" });
         }
-        
+
         // Check if already reviewed
         const existing = await db.getReviewByContractAndReviewer(input.contractId, reviewerId);
         if (existing) throw new TRPCError({ code: "CONFLICT", message: "Already reviewed" });
-        
+
         await db.createReview({
           contractId: input.contractId,
           campaignId: contract.campaignId,
@@ -956,19 +967,19 @@ export const appRouter = router({
           rating: input.rating,
           comment: input.comment,
         });
-        
+
         // Update ratings
         if (revieweeType === "creator") {
           await db.updateCreatorRating(revieweeId);
         } else {
           await db.updateBrandRating(revieweeId);
         }
-        
+
         // Notify reviewee
         const revieweeProfile = revieweeType === "creator"
           ? await db.getCreatorProfileById(revieweeId)
           : await db.getBrandProfileById(revieweeId);
-        
+
         if (revieweeProfile) {
           await db.createNotification({
             userId: revieweeProfile.userId,
@@ -978,19 +989,19 @@ export const appRouter = router({
             link: revieweeType === "creator" ? `/dashboard/creator/reviews` : `/dashboard/brand/reviews`,
           });
         }
-        
+
         return { success: true };
       }),
-    
+
     getForContract: protectedProcedure
       .input(z.object({ contractId: z.number() }))
       .query(async ({ input }) => {
         const contract = await db.getContractById(input.contractId);
         if (!contract) return [];
-        
+
         const creatorReviews = await db.getReviewsByRevieweeId(contract.creatorId, "creator");
         const brandReviews = await db.getReviewsByRevieweeId(contract.brandId, "brand");
-        
+
         return [...creatorReviews, ...brandReviews].filter(r => r.contractId === input.contractId);
       }),
   }),
@@ -1000,18 +1011,18 @@ export const appRouter = router({
     getAll: protectedProcedure.query(async ({ ctx }) => {
       return db.getNotificationsByUserId(ctx.user.id);
     }),
-    
+
     getUnreadCount: protectedProcedure.query(async ({ ctx }) => {
       return db.getUnreadNotificationCount(ctx.user.id);
     }),
-    
+
     markAsRead: protectedProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input }) => {
         await db.markNotificationAsRead(input.id);
         return { success: true };
       }),
-    
+
     markAllAsRead: protectedProcedure.mutation(async ({ ctx }) => {
       await db.markAllNotificationsAsRead(ctx.user.id);
       return { success: true };
@@ -1024,32 +1035,32 @@ export const appRouter = router({
       if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
       return db.getAdminStats();
     }),
-    
+
     getAllUsers: protectedProcedure.query(async ({ ctx }) => {
       if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
       return db.getAllUsers();
     }),
-    
+
     getAllCreators: protectedProcedure.query(async ({ ctx }) => {
       if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
       return db.getAllCreators();
     }),
-    
+
     getAllCampaigns: protectedProcedure.query(async ({ ctx }) => {
       if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
       return db.getAllCampaigns();
     }),
-    
+
     getAllPayments: protectedProcedure.query(async ({ ctx }) => {
       if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
       return db.getAllPayments();
     }),
-    
+
     getAllContracts: protectedProcedure.query(async ({ ctx }) => {
       if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
       return db.getAllContracts();
     }),
-    
+
     verifyCreator: protectedProcedure
       .input(z.object({ creatorId: z.number() }))
       .mutation(async ({ ctx, input }) => {
@@ -1057,7 +1068,7 @@ export const appRouter = router({
         await db.updateCreatorProfileById(input.creatorId, { isVerified: true, verificationDate: new Date() });
         return { success: true };
       }),
-    
+
     verifyBrand: protectedProcedure
       .input(z.object({ brandId: z.number() }))
       .mutation(async ({ ctx, input }) => {
