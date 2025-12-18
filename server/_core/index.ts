@@ -50,8 +50,10 @@ async function startServer() {
     ];
 
     const origin = req.headers.origin;
-    if (origin && allowedOrigins.includes(origin)) {
-      res.setHeader("Access-Control-Allow-Origin", origin);
+
+    // Allow same-origin requests (no Origin header) OR requests from allowed origins
+    if (!origin || allowedOrigins.includes(origin)) {
+      res.setHeader("Access-Control-Allow-Origin", origin || "*");
     }
 
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH");
