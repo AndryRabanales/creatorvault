@@ -6,9 +6,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { trpc } from "@/lib/trpc";
 import { useLocation, Link } from "wouter";
-import { 
-  Loader2, DollarSign, Calendar, Briefcase, FileText, Clock, 
-  CheckCircle, XCircle, ExternalLink, LogOut, TrendingUp, 
+import {
+  Loader2, DollarSign, Calendar, Briefcase, FileText, Clock,
+  CheckCircle, XCircle, ExternalLink, LogOut, TrendingUp,
   Star, MessageSquare, BarChart3, Award, ArrowRight, Bell
 } from "lucide-react";
 import { useEffect, useMemo } from "react";
@@ -25,9 +25,16 @@ const TIER_CONFIG = {
 export default function CreatorDashboard() {
   const { user, isAuthenticated, loading, logout } = useAuth();
   const [, setLocation] = useLocation();
-  
+
   const profileQuery = trpc.creator.getProfile.useQuery(undefined, { enabled: isAuthenticated });
   const statsQuery = trpc.creator.getStats.useQuery(undefined, { enabled: isAuthenticated });
+
+  // Redirect to onboarding if profile doesn't exist
+  useEffect(() => {
+    if (!profileQuery.isLoading && !profileQuery.data) {
+      setLocation('/onboarding/creator');
+    }
+  }, [profileQuery.data, profileQuery.isLoading, setLocation]);
   const paymentsQuery = trpc.creator.getPayments.useQuery(undefined, { enabled: isAuthenticated });
   const applicationsQuery = trpc.creator.getApplications.useQuery(undefined, { enabled: isAuthenticated });
   const contractsQuery = trpc.creator.getContracts.useQuery(undefined, { enabled: isAuthenticated });

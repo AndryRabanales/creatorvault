@@ -12,11 +12,18 @@ import { getLoginUrl } from "@/const";
 export default function BrandDashboard() {
   const { user, isAuthenticated, loading, logout } = useAuth();
   const [, setLocation] = useLocation();
-  
-  const profileQuery = trpc.brand.getProfile.useQuery(undefined, { enabled: isAuthenticated });
+
+  const profileQuery = trpc.brand.getProfile.useQuery();
   const statsQuery = trpc.brand.getStats.useQuery(undefined, { enabled: isAuthenticated });
   const campaignsQuery = trpc.brand.getCampaigns.useQuery(undefined, { enabled: isAuthenticated });
   const contractsQuery = trpc.brand.getContracts.useQuery(undefined, { enabled: isAuthenticated });
+
+  // Redirect to onboarding if profile doesn't exist
+  useEffect(() => {
+    if (!profileQuery.isLoading && !profileQuery.data) {
+      setLocation('/onboarding/brand');
+    }
+  }, [profileQuery.data, profileQuery.isLoading, setLocation]);
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
