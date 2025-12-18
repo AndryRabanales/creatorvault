@@ -594,7 +594,10 @@ export const appRouter = router({
       }),
     
     sign: protectedProcedure
-      .input(z.object({ contractId: z.number() }))
+      .input(z.object({ 
+        contractId: z.number(),
+        signature: z.string().min(1, "Signature is required")
+      }))
       .mutation(async ({ ctx, input }) => {
         const contract = await db.getContractById(input.contractId);
         if (!contract) throw new TRPCError({ code: "NOT_FOUND" });
@@ -602,6 +605,15 @@ export const appRouter = router({
         const profile = await db.getCreatorProfileByUserId(ctx.user.id);
         if (!profile || profile.id !== contract.creatorId) {
           throw new TRPCError({ code: "FORBIDDEN" });
+        }
+
+        // Verify signature matches profile name exactly (case-insensitive for better UX, or strict?)
+        // Strict is safer for "Digital Contract" feel.
+        if (input.signature.trim() !== profile.name) {
+          throw new TRPCError({ 
+            code: "BAD_REQUEST", 
+            message: `Signature "${input.signature}" does not match your profile name "${profile.name}". Please type your full name exactly.` 
+          });
         }
         
         await db.updateContract(input.contractId, {

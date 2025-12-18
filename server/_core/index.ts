@@ -29,7 +29,12 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
   throw new Error(`No available port found starting from ${startPort}`);
 }
 
+import { initScheduler } from "../scheduler";
+
 async function startServer() {
+  // Initialize background jobs
+  initScheduler();
+
   const app = express();
   const server = createServer(app);
 
@@ -41,21 +46,21 @@ async function startServer() {
       "http://localhost:5173",
       "http://localhost:5174",
     ];
-    
+
     const origin = req.headers.origin;
     if (origin && allowedOrigins.includes(origin)) {
       res.setHeader("Access-Control-Allow-Origin", origin);
     }
-    
+
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, Cookie");
     res.setHeader("Access-Control-Allow-Credentials", "true");
-    
+
     // Handle preflight requests
     if (req.method === "OPTIONS") {
       return res.status(200).end();
     }
-    
+
     next();
   });
 
@@ -80,7 +85,7 @@ async function startServer() {
 
   // Authentication routes (OAuth callback, etc.)
   registerAuthRoutes(app);
-  
+
   // tRPC API
   app.use(
     "/api/trpc",
@@ -89,7 +94,7 @@ async function startServer() {
       createContext,
     })
   );
-  
+
   // development mode uses Vite, production mode uses static files
   if (process.env.NODE_ENV === "development") {
     await setupVite(app, server);

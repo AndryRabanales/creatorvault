@@ -6,7 +6,7 @@ import { Separator } from "@/components/ui/separator";
 import { trpc } from "@/lib/trpc";
 import { useLocation, useParams, Link } from "wouter";
 import { Loader2, ArrowLeft, CheckCircle, Clock, FileText, DollarSign, PenTool } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { getLoginUrl } from "@/const";
 import { toast } from "sonner";
 
@@ -18,9 +18,10 @@ export default function ContractView() {
   const contractQuery = trpc.contract.getById.useQuery({ id: parseInt(id || "0") }, { enabled: !!id });
   const creatorProfileQuery = trpc.creator.getProfile.useQuery(undefined, { enabled: isAuthenticated && user?.role === "creator" });
   const brandProfileQuery = trpc.brand.getProfile.useQuery(undefined, { enabled: isAuthenticated && user?.role === "brand" });
-  
+
   const signMutation = trpc.contract.sign.useMutation();
   const utils = trpc.useUtils();
+  const [signature, setSignature] = useState("");
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
@@ -30,11 +31,14 @@ export default function ContractView() {
 
   const handleSign = async () => {
     try {
-      await signMutation.mutateAsync({ contractId: parseInt(id || "0") });
+      await signMutation.mutateAsync({
+        contractId: parseInt(id || "0"),
+        signature
+      });
       toast.success("Contract signed successfully!");
       utils.contract.getById.invalidate();
     } catch (error) {
-      toast.error("Failed to sign contract");
+      toast.error("Failed to sign contract: " + (error as Error).message);
     }
   };
 
@@ -64,7 +68,7 @@ export default function ContractView() {
   const isCreator = user?.role === "creator";
   const isBrand = user?.role === "brand";
   const canSign = (isCreator && creatorProfileQuery.data?.id === contract.creatorId && !contract.creatorSigned) ||
-                  (isBrand && brandProfileQuery.data?.id === contract.brandId && !contract.brandSigned);
+    (isBrand && brandProfileQuery.data?.id === contract.brandId && !contract.brandSigned);
 
   const backUrl = isCreator ? "/dashboard/creator" : "/dashboard/brand";
 
@@ -129,7 +133,7 @@ export default function ContractView() {
                     <span className="font-medium">Brand</span>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    {contract.brandSigned 
+                    {contract.brandSigned
                       ? `Signed on ${new Date(contract.brandSignedAt!).toLocaleDateString()}`
                       : "Awaiting signature"
                     }
@@ -145,7 +149,7 @@ export default function ContractView() {
                     <span className="font-medium">Creator</span>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    {contract.creatorSigned 
+                    {contract.creatorSigned
                       ? `Signed on ${new Date(contract.creatorSignedAt!).toLocaleDateString()}`
                       : "Awaiting signature"
                     }
@@ -205,11 +209,24 @@ export default function ContractView() {
                   <p className="text-muted-foreground mb-4">
                     By signing this contract, you agree to all the terms and conditions above.
                   </p>
-                  <Button 
-                    size="lg" 
-                    onClick={handleSign} 
-                    disabled={signMutation.isPending}
-                    className="gap-2"
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium mb-1">Type your full legal name to sign</label>
+                    <input
+                      type="text"
+                      className="w-full p-2 border rounded-md"
+                      placeholder={isCreator ? creatorProfileQuery.data?.name : isBrand ? brandProfileQuery.data?.companyName : "Full Name"}
+                      value={signature}
+                      onChange={(e) => setSignature(e.target.value)}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Must match exactly: {isCreator ? creatorProfileQuery.data?.name : isBrand ? brandProfileQuery.data?.companyName : "Your Name"}
+                    </p>
+                  </div>
+                  <Button
+                    size="lg"
+                    onClick={handleSign}
+                    disabled={signMutation.isPending || !signature}
+                    className="gap-2 w-full"
                   >
                     {signMutation.isPending ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
