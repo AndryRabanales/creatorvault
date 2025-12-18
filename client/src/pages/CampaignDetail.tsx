@@ -9,8 +9,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Separator } from "@/components/ui/separator";
 import { trpc } from "@/lib/trpc";
 import { useLocation, useParams, Link } from "wouter";
-import { 
-  Loader2, ArrowLeft, DollarSign, Users, Calendar, CheckCircle, 
+import {
+  Loader2, ArrowLeft, DollarSign, Users, Calendar, CheckCircle,
   XCircle, Clock, Send, ExternalLink, FileText, Building2, User
 } from "lucide-react";
 import { useState, useEffect } from "react";
@@ -29,19 +29,20 @@ export default function CampaignDetail() {
 
   const campaignId = parseInt(id || "0");
   const campaignQuery = trpc.campaign.getById.useQuery({ id: campaignId }, { enabled: campaignId > 0 });
-  const creatorProfileQuery = trpc.creator.getProfile.useQuery(undefined, { 
-    enabled: isAuthenticated && user?.role === "creator" 
+  const creatorProfileQuery = trpc.creator.getProfile.useQuery(undefined, {
+    enabled: isAuthenticated && user?.role === "creator"
   });
   const applicationsQuery = trpc.campaign.getApplications.useQuery(
-    { campaignId }, 
+    { campaignId },
     { enabled: campaignId > 0 }
   );
-  
+
   const applyMutation = trpc.application.applyToCampaign.useMutation();
   const approveMutation = trpc.application.approve.useMutation();
   const rejectMutation = trpc.application.reject.useMutation();
   const submitDeliverableMutation = trpc.deliverable.submit.useMutation();
   const approveDeliverableMutation = trpc.deliverable.approve.useMutation();
+  const activateMutation = trpc.campaign.activate.useMutation();
 
   const utils = trpc.useUtils();
 
@@ -117,6 +118,16 @@ export default function CampaignDetail() {
     }
   };
 
+  const handleActivate = async () => {
+    try {
+      await activateMutation.mutateAsync({ id: campaignId });
+      toast.success("Campaign activated! Funds deposited.");
+      utils.campaign.getById.invalidate({ id: campaignId });
+    } catch (error) {
+      toast.error("Failed to activate campaign");
+    }
+  };
+
   if (loading || campaignQuery.isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -149,7 +160,7 @@ export default function CampaignDetail() {
   const applications = applicationsQuery.data || [];
   const isCreator = user?.role === "creator";
   const isBrand = user?.role === "brand";
-  const myApplication = isCreator && creatorProfileQuery.data 
+  const myApplication = isCreator && creatorProfileQuery.data
     ? applications.find((a: any) => a.creatorId === creatorProfileQuery.data?.id)
     : null;
 
@@ -185,8 +196,8 @@ export default function CampaignDetail() {
                   </div>
                   <Badge className={
                     campaign.status === "active" ? "bg-green-600" :
-                    campaign.status === "completed" ? "bg-blue-600" :
-                    "bg-yellow-600"
+                      campaign.status === "completed" ? "bg-blue-600" :
+                        "bg-yellow-600"
                   }>
                     {campaign.status}
                   </Badge>
@@ -212,8 +223,8 @@ export default function CampaignDetail() {
                   <div className="text-center p-4 bg-muted rounded-lg">
                     <Calendar className="w-6 h-6 mx-auto mb-2 text-orange-600" />
                     <p className="text-lg font-bold">
-                      {campaign.deadline 
-                        ? new Date(campaign.deadline).toLocaleDateString() 
+                      {campaign.deadline
+                        ? new Date(campaign.deadline).toLocaleDateString()
                         : "No deadline"}
                     </p>
                     <p className="text-sm text-muted-foreground">Deadline</p>
@@ -230,6 +241,49 @@ export default function CampaignDetail() {
                 </CardHeader>
                 <CardContent>
                   <p className="whitespace-pre-wrap">{campaign.requirements}</p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Brand Actions: Activate Flow */}
+            {isBrand && campaign.status === "draft" && (
+              <Card className="border-green-200 bg-green-50">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-green-800">
+                    <DollarSign className="w-5 h-5" /> Deposit & Activate
+                  </CardTitle>
+                  <CardDescription className="text-green-700">
+                    Your campaign is currently in <b>Draft</b> mode. Deposit the budget to start accepting applications.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-between bg-white p-4 rounded-lg border border-green-100 mb-4">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Total Budget to Deposit</p>
+                      <p className="text-2xl font-bold text-green-600">${parseFloat(campaign.budget).toLocaleString()}</p>
+                    </div>
+                    <div>
+                      <Badge variant="outline" className="border-green-200 text-green-700 bg-green-50">
+                        Held in Escrow
+                      </Badge>
+                    </div>
+                  </div>
+                  <Button
+                    size="lg"
+                    className="w-full bg-green-600 hover:bg-green-700"
+                    onClick={handleActivate}
+                    disabled={activateMutation.isPending}
+                  >
+                    {activateMutation.isPending ? (
+                      <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                    ) : (
+                      <DollarSign className="w-5 h-5 mr-2" />
+                    )}
+                    Simulate Deposit & Activate
+                  </Button>
+                  <p className="text-xs text-center text-green-600 mt-2">
+                    * This is a simulation for MVP testing. No real money is charged.
+                  </p>
                 </CardContent>
               </Card>
             )}
@@ -259,30 +313,30 @@ export default function CampaignDetail() {
                           </div>
                           <Badge variant={
                             app.status === "approved" ? "default" :
-                            app.status === "rejected" ? "destructive" :
-                            "secondary"
+                              app.status === "rejected" ? "destructive" :
+                                "secondary"
                           }>
                             {app.status}
                           </Badge>
                         </div>
-                        
+
                         {app.message && (
                           <p className="mt-3 text-sm text-muted-foreground bg-muted p-3 rounded">
                             "{app.message}"
                           </p>
                         )}
-                        
+
                         {app.status === "pending" && (
                           <div className="flex gap-2 mt-4">
-                            <Button 
-                              size="sm" 
+                            <Button
+                              size="sm"
                               onClick={() => handleApprove(app.id)}
                               disabled={approveMutation.isPending}
                             >
                               <CheckCircle className="w-4 h-4 mr-1" /> Approve
                             </Button>
-                            <Button 
-                              size="sm" 
+                            <Button
+                              size="sm"
                               variant="outline"
                               onClick={() => handleReject(app.id)}
                               disabled={rejectMutation.isPending}
@@ -354,7 +408,7 @@ export default function CampaignDetail() {
                           </Badge>
                         )}
                       </div>
-                      
+
                       {myApplication.status === "approved" && (
                         <>
                           <Separator />
@@ -388,9 +442,9 @@ export default function CampaignDetail() {
                                       onChange={(e) => setDeliverableDescription(e.target.value)}
                                     />
                                   </div>
-                                  <Button 
-                                    onClick={() => handleSubmitDeliverable(myApplication.id)} 
-                                    disabled={!deliverableLink || submitDeliverableMutation.isPending} 
+                                  <Button
+                                    onClick={() => handleSubmitDeliverable(myApplication.id)}
+                                    disabled={!deliverableLink || submitDeliverableMutation.isPending}
                                     className="w-full"
                                   >
                                     {submitDeliverableMutation.isPending ? (
@@ -403,7 +457,7 @@ export default function CampaignDetail() {
                               </DialogContent>
                             </Dialog>
                           </div>
-                          
+
                           <Link href={`/contract/${(myApplication as any).contractId || 0}`}>
                             <Button variant="outline" className="w-full">
                               <FileText className="w-4 h-4 mr-2" /> View Contract
@@ -434,8 +488,8 @@ export default function CampaignDetail() {
                               rows={4}
                             />
                           </div>
-                          <Button 
-                            onClick={handleApply} 
+                          <Button
+                            onClick={handleApply}
                             disabled={applyMutation.isPending}
                             className="w-full"
                           >
