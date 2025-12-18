@@ -1,45 +1,48 @@
 # ============================================
-# CreatorVault - Dockerfile
+# CreatorVault - Production Dockerfile
+# Frontend + Backend in one container
 # ============================================
-# Usar para deployment en: DigitalOcean, AWS, Google Cloud, etc.
-
 FROM node:20-alpine AS base
 
-# Instalar pnpm
-RUN npm install -g pnpm
+# Install pnpm
+RUN npm install -g pnpm npm
 
 WORKDIR /app
 
 # ============================================
-# Etapa de dependencias
+# Dependencies
 # ============================================
 FROM base AS deps
 
-COPY package.json pnpm-lock.yaml ./
+COPY package.json package-lock.json* pnpm-lock.yaml* ./
 COPY patches ./patches
-RUN pnpm install --frozen-lockfile
+
+# Install with npm (bypassing pnpm issues)
+RUN npm install --legacy-peer-deps || pnpm install --frozen-lockfile
 
 # ============================================
-# Etapa de build
+# Build Stage (Frontend + Backend)
 # ============================================
 FROM base AS builder
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-RUN pnpm build
+# Build BOTH frontend and backend
+RUN npm run build
 
 # ============================================
-# Etapa de producción
+# Production Runner
 # ============================================
 FROM base AS runner
 
 ENV NODE_ENV=production
 
-# Crear usuario no-root
+# Create non-root user
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 creatorvault
 
+# Copy compiled assets
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
@@ -52,5 +55,5 @@ EXPOSE 3000
 
 ENV PORT=3000
 
-CMD ["pnpm", "start"]
+CMD ["npm", "start"]
 
